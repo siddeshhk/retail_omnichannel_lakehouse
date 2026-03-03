@@ -1,0 +1,54 @@
+{
+	"name": "customerSQLDS",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "AzureSqlDatabasels",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "AzureSqlTable",
+		"schema": [
+			{
+				"name": "customer_id",
+				"type": "varchar"
+			},
+			{
+				"name": "customer_name",
+				"type": "varchar"
+			},
+			{
+				"name": "email",
+				"type": "varchar"
+			},
+			{
+				"name": "phone",
+				"type": "varchar"
+			},
+			{
+				"name": "region",
+				"type": "varchar"
+			},
+			{
+				"name": "city",
+				"type": "varchar"
+			},
+			{
+				"name": "signup_date",
+				"type": "varchar"
+			},
+			{
+				"name": "status",
+				"type": "varchar"
+			},
+			{
+				"name": "snapshot_date",
+				"type": "varchar"
+			}
+		],
+		"typeProperties": {
+			"schema": "dbo",
+			"table": "customers"
+		}
+	},
+	"type": "Microsoft.DataFactory/factories/datasets"
+}

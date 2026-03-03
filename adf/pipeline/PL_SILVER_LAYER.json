@@ -1,0 +1,314 @@
+{
+	"name": "PL_SILVER_LAYER",
+	"properties": {
+		"activities": [
+			{
+				"name": "customers_silver_ingestion",
+				"type": "DatabricksNotebook",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebookPath": "/Users/soumyakm1995@gmail.com/retail-omnichannel-lakehouse/databricks/02_silver/customers_silver_ingestion",
+					"baseParameters": {
+						"source_table": "retail_bronze.customers",
+						"target_table": "retail_silver.dim_customers"
+					}
+				},
+				"linkedServiceName": {
+					"referenceName": "ls_azure_databricks",
+					"type": "LinkedServiceReference"
+				}
+			},
+			{
+				"name": "products_silver_ingestion",
+				"type": "DatabricksNotebook",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebookPath": "/Users/soumyakm1995@gmail.com/retail-omnichannel-lakehouse/databricks/02_silver/products_silver_ingestion",
+					"baseParameters": {
+						"source_table": "retail_bronze.products",
+						"target_table": "retail_silver.dim_products"
+					}
+				},
+				"linkedServiceName": {
+					"referenceName": "ls_azure_databricks",
+					"type": "LinkedServiceReference"
+				}
+			},
+			{
+				"name": "ecommerce_orders_silver_ingestion",
+				"type": "DatabricksNotebook",
+				"dependsOn": [
+					{
+						"activity": "customers_silver_ingestion",
+						"dependencyConditions": [
+							"Completed"
+						]
+					},
+					{
+						"activity": "products_silver_ingestion",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebookPath": "/Users/soumyakm1995@gmail.com/retail-omnichannel-lakehouse/databricks/02_silver/ecommerce_orders_silver_ingestion",
+					"baseParameters": {
+						"source_table": "retail_bronze.ecommerce_orders",
+						"target_table": "retail_silver.ecommerce_orders"
+					}
+				},
+				"linkedServiceName": {
+					"referenceName": "ls_azure_databricks",
+					"type": "LinkedServiceReference"
+				}
+			},
+			{
+				"name": "pos_sales_silver_ingestion",
+				"type": "DatabricksNotebook",
+				"dependsOn": [
+					{
+						"activity": "customers_silver_ingestion",
+						"dependencyConditions": [
+							"Completed"
+						]
+					},
+					{
+						"activity": "products_silver_ingestion",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebookPath": "/Users/soumyakm1995@gmail.com/retail-omnichannel-lakehouse/databricks/02_silver/pos_sales_silver_ingestion",
+					"baseParameters": {
+						"source_table": "retail_bronze.pos_sales",
+						"target_table": "retail_silver.pos_sales"
+					}
+				},
+				"linkedServiceName": {
+					"referenceName": "ls_azure_databricks",
+					"type": "LinkedServiceReference"
+				}
+			},
+			{
+				"name": "inventory_snapshot_silver_ingestion",
+				"type": "DatabricksNotebook",
+				"dependsOn": [
+					{
+						"activity": "customers_silver_ingestion",
+						"dependencyConditions": [
+							"Completed"
+						]
+					},
+					{
+						"activity": "products_silver_ingestion",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"notebookPath": "/Users/soumyakm1995@gmail.com/retail-omnichannel-lakehouse/databricks/02_silver/inventory_snapshot_silver_ingestion",
+					"baseParameters": {
+						"source_table": "retail_bronze.inventory_snapshot",
+						"target_table": "retail_silver.inventory_snapshot"
+					}
+				},
+				"linkedServiceName": {
+					"referenceName": "ls_azure_databricks",
+					"type": "LinkedServiceReference"
+				}
+			},
+			{
+				"name": "on_fail_send_email_c",
+				"type": "WebActivity",
+				"dependsOn": [
+					{
+						"activity": "customers_silver_ingestion",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"method": "POST",
+					"url": "https://prod-33.eastus.logic.azure.com:443/workflows/5b928c014fc245a0a92d9181312c327f/triggers/When_an_HTTP_request_is_received/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2FWhen_an_HTTP_request_is_received%2Frun&sv=1.0&sig=v4cOXyTkGgyWrERZI9AnmXIh5mQzzFRd4oHBOkHz0rk",
+					"body": {
+						"to": "siddeshhk.99@gmail.com",
+						"subject": "ADF pipeline",
+						"email_body": "Customers silver notebook failed with some error please have look into notebook for detailed issue "
+					}
+				}
+			},
+			{
+				"name": "on_fail_send_email_c_copy1",
+				"type": "WebActivity",
+				"dependsOn": [
+					{
+						"activity": "products_silver_ingestion",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"method": "POST",
+					"url": "https://prod-33.eastus.logic.azure.com:443/workflows/5b928c014fc245a0a92d9181312c327f/triggers/When_an_HTTP_request_is_received/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2FWhen_an_HTTP_request_is_received%2Frun&sv=1.0&sig=v4cOXyTkGgyWrERZI9AnmXIh5mQzzFRd4oHBOkHz0rk",
+					"body": {
+						"to": "siddeshhk.99@gmail.com",
+						"subject": "ADF pipeline",
+						"email_body": "Products silver notebook failed with some error please have look into notebook for detailed issue "
+					}
+				}
+			},
+			{
+				"name": "on_fail_send_email_c_copy2",
+				"type": "WebActivity",
+				"dependsOn": [
+					{
+						"activity": "ecommerce_orders_silver_ingestion",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"method": "POST",
+					"url": "https://prod-33.eastus.logic.azure.com:443/workflows/5b928c014fc245a0a92d9181312c327f/triggers/When_an_HTTP_request_is_received/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2FWhen_an_HTTP_request_is_received%2Frun&sv=1.0&sig=v4cOXyTkGgyWrERZI9AnmXIh5mQzzFRd4oHBOkHz0rk",
+					"body": {
+						"to": "siddeshhk.99@gmail.com",
+						"subject": "ADF pipeline",
+						"email_body": "E-commers silver notebook failed with some error please have look into notebook for detailed issue "
+					}
+				}
+			},
+			{
+				"name": "on_fail_send_email_c_copy2_copy1",
+				"type": "WebActivity",
+				"dependsOn": [
+					{
+						"activity": "pos_sales_silver_ingestion",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"method": "POST",
+					"url": "https://prod-33.eastus.logic.azure.com:443/workflows/5b928c014fc245a0a92d9181312c327f/triggers/When_an_HTTP_request_is_received/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2FWhen_an_HTTP_request_is_received%2Frun&sv=1.0&sig=v4cOXyTkGgyWrERZI9AnmXIh5mQzzFRd4oHBOkHz0rk",
+					"body": {
+						"to": "siddeshhk.99@gmail.com",
+						"subject": "ADF pipeline",
+						"email_body": "pos silver notebook failed with some error please have look into notebook for detailed issue "
+					}
+				}
+			},
+			{
+				"name": "on_fail_send_email_c_copy2_copy1_copy1",
+				"type": "WebActivity",
+				"dependsOn": [
+					{
+						"activity": "inventory_snapshot_silver_ingestion",
+						"dependencyConditions": [
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"method": "POST",
+					"url": "https://prod-33.eastus.logic.azure.com:443/workflows/5b928c014fc245a0a92d9181312c327f/triggers/When_an_HTTP_request_is_received/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2FWhen_an_HTTP_request_is_received%2Frun&sv=1.0&sig=v4cOXyTkGgyWrERZI9AnmXIh5mQzzFRd4oHBOkHz0rk",
+					"body": {
+						"to": "siddeshhk.99@gmail.com",
+						"subject": "ADF pipeline",
+						"email_body": "Inventory silver notebook failed with some error please have look into notebook for detailed issue "
+					}
+				}
+			}
+		],
+		"annotations": [],
+		"lastPublishTime": "2026-02-28T08:44:08Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}
