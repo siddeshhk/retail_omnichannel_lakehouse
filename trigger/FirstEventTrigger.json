@@ -1,0 +1,17 @@
+{
+	"name": "FirstEventTrigger",
+	"properties": {
+		"annotations": [],
+		"runtimeState": "Stopped",
+		"pipelines": [],
+		"type": "BlobEventsTrigger",
+		"typeProperties": {
+			"blobPathBeginsWith": "/sqlcontainer/blobs/customers/",
+			"ignoreEmptyBlobs": true,
+			"scope": "/subscriptions/8f9aed69-11e7-4db9-a08c-4a2276ac609d/resourceGroups/retail_omnichannel_lakehouse/providers/Microsoft.Storage/storageAccounts/retaileromnichannelgen2",
+			"events": [
+				"Microsoft.Storage.BlobCreated"
+			]
+		}
+	}
+}
