@@ -1,0 +1,9 @@
+{
+	"name": "adf-retail-omni",
+	"location": "eastus",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "53b2c5e0-27dd-48f1-989b-101a0e3d2a66",
+		"tenantId": "431108a4-1e5d-4577-a8a0-90b8afdd6921"
+	}
+}

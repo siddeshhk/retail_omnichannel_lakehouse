@@ -1,0 +1,32 @@
+{
+	"name": "Logic_APPS_TEST",
+	"properties": {
+		"activities": [
+			{
+				"name": "send_email",
+				"type": "WebActivity",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"method": "POST",
+					"url": "https://prod-33.eastus.logic.azure.com:443/workflows/5b928c014fc245a0a92d9181312c327f/triggers/When_an_HTTP_request_is_received/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2FWhen_an_HTTP_request_is_received%2Frun&sv=1.0&sig=v4cOXyTkGgyWrERZI9AnmXIh5mQzzFRd4oHBOkHz0rk",
+					"body": {
+						"to": "siddeshhk.99@gmail.com",
+						"subject": "ADF pipeline",
+						"email_body": "Some error accured"
+					}
+				}
+			}
+		],
+		"annotations": [],
+		"lastPublishTime": "2026-02-28T08:29:49Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}
