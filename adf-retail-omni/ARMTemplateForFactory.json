@@ -1,0 +1,1918 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory name",
+			"defaultValue": "adf-retail-omni"
+		},
+		"AzureBlobStorage1_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'AzureBlobStorage1'"
+		},
+		"AzureSqlDatabasels_password": {
+			"type": "secureString",
+			"metadata": "Secure string for 'password' of 'AzureSqlDatabasels'"
+		},
+		"ls_azure_databricks_accessToken": {
+			"type": "secureString",
+			"metadata": "Secure string for 'accessToken' of 'ls_azure_databricks'"
+		},
+		"AzureSqlDatabasels_properties_typeProperties_server": {
+			"type": "string",
+			"defaultValue": "retail-domnicanal.database.windows.net"
+		},
+		"AzureSqlDatabasels_properties_typeProperties_database": {
+			"type": "string",
+			"defaultValue": "retail_domnicanal"
+		},
+		"AzureSqlDatabasels_properties_typeProperties_userName": {
+			"type": "string",
+			"defaultValue": "sid"
+		},
+		"ls_azure_databricks_properties_typeProperties_existingClusterId": {
+			"type": "string",
+			"defaultValue": "0217-094249-4d6zqh7m"
+		},
+		"FirstEventTrigger_properties_typeProperties_scope": {
+			"type": "string",
+			"defaultValue": "/subscriptions/8f9aed69-11e7-4db9-a08c-4a2276ac609d/resourceGroups/retail_omnichannel_lakehouse/providers/Microsoft.Storage/storageAccounts/retaileromnichannelgen2"
+		},
+		"secondEventTrigger_properties_CopyFromBlobToSQL_parameters_fileName": {
+			"type": "string",
+			"defaultValue": "@triggerBody().fileName"
+		},
+		"secondEventTrigger_properties_typeProperties_scope": {
+			"type": "string",
+			"defaultValue": "/subscriptions/8f9aed69-11e7-4db9-a08c-4a2276ac609d/resourceGroups/retail_omnichannel_lakehouse/providers/Microsoft.Storage/storageAccounts/retaileromnichannelgen2"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/Azure_DataFactory_Activities')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "GetMetaData",
+						"type": "GetMetadata",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataset": {
+								"referenceName": "metaDataAnalysis",
+								"type": "DatasetReference",
+								"parameters": {}
+							},
+							"fieldList": [
+								"childItems"
+							],
+							"storeSettings": {
+								"type": "AzureBlobStorageReadSettings",
+								"recursive": true,
+								"enablePartitionDiscovery": false
+							},
+							"formatSettings": {
+								"type": "DelimitedTextReadSettings"
+							}
+						}
+					},
+					{
+						"name": "foreachIterator",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "GetMetaData",
+								"dependencyConditions": [
+									"Completed"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('GetMetaData').output.childItems",
+								"type": "Expression"
+							},
+							"isSequential": false,
+							"activities": [
+								{
+									"name": "Get Metadata1",
+									"type": "GetMetadata",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"dataset": {
+											"referenceName": "metadataAnalysis2",
+											"type": "DatasetReference",
+											"parameters": {
+												"FileName": {
+													"value": "@item().name",
+													"type": "Expression"
+												}
+											}
+										},
+										"fieldList": [
+											"itemName",
+											"lastModified"
+										],
+										"storeSettings": {
+											"type": "AzureBlobStorageReadSettings",
+											"recursive": true,
+											"enablePartitionDiscovery": false
+										},
+										"formatSettings": {
+											"type": "DelimitedTextReadSettings"
+										}
+									}
+								},
+								{
+									"name": "If Condition1",
+									"type": "IfCondition",
+									"dependsOn": [
+										{
+											"activity": "Get Metadata1",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"userProperties": [],
+									"typeProperties": {
+										"expression": {
+											"value": "@greater(formatDateTime(activity('Get Metadata1').output.lastModified,'yyyyMMddHHmmss'),formatDateTime(variables('PreviousModifiedDate'),'yyyyMMddHHmmss'))\n",
+											"type": "Expression"
+										},
+										"ifTrueActivities": [
+											{
+												"name": "Set variable1",
+												"type": "SetVariable",
+												"dependsOn": [],
+												"policy": {
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"variableName": "LatestFileName",
+													"value": {
+														"value": "@activity('Get Metadata1').output.itemName",
+														"type": "Expression"
+													}
+												}
+											},
+											{
+												"name": "Set variable2",
+												"type": "SetVariable",
+												"dependsOn": [],
+												"policy": {
+													"secureOutput": false,
+													"secureInput": false
+												},
+												"userProperties": [],
+												"typeProperties": {
+													"variableName": "PreviousModifiedDate",
+													"value": {
+														"value": "@activity('Get Metadata1').output.lastModified",
+														"type": "Expression"
+													}
+												}
+											}
+										]
+									}
+								}
+							]
+						}
+					},
+					{
+						"name": "Copy data1",
+						"type": "Copy",
+						"dependsOn": [
+							{
+								"activity": "foreachIterator",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "DelimitedTextSource",
+								"storeSettings": {
+									"type": "AzureBlobStorageReadSettings",
+									"recursive": true,
+									"enablePartitionDiscovery": false
+								},
+								"formatSettings": {
+									"type": "DelimitedTextReadSettings"
+								}
+							},
+							"sink": {
+								"type": "DelimitedTextSink",
+								"storeSettings": {
+									"type": "AzureBlobStorageWriteSettings"
+								},
+								"formatSettings": {
+									"type": "DelimitedTextWriteSettings",
+									"quoteAllText": true,
+									"fileExtension": ".txt"
+								}
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"typeConversion": true,
+								"typeConversionSettings": {
+									"allowDataTruncation": true,
+									"treatBooleanAsNumber": false
+								}
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "metadataAnalysis2",
+								"type": "DatasetReference",
+								"parameters": {
+									"FileName": {
+										"value": "@variables('LatestFileName')",
+										"type": "Expression"
+									}
+								}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "outputDS",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						]
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"variables": {
+					"LatestFileName": {
+						"type": "String"
+					},
+					"PreviousModifiedDate": {
+						"type": "String",
+						"defaultValue": "1990-01-01"
+					}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/metaDataAnalysis')]",
+				"[concat(variables('factoryId'), '/datasets/metadataAnalysis2')]",
+				"[concat(variables('factoryId'), '/datasets/outputDS')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/CopyFromBlobToSQL')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "CopyData",
+						"type": "Copy",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "DelimitedTextSource",
+								"storeSettings": {
+									"type": "AzureBlobStorageReadSettings",
+									"recursive": true,
+									"enablePartitionDiscovery": false
+								},
+								"formatSettings": {
+									"type": "DelimitedTextReadSettings"
+								}
+							},
+							"sink": {
+								"type": "AzureSqlSink",
+								"writeBehavior": "insert",
+								"sqlWriterUseTableLock": false,
+								"disableMetricsCollection": false
+							},
+							"enableStaging": false,
+							"validateDataConsistency": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"typeConversion": true,
+								"typeConversionSettings": {
+									"allowDataTruncation": true,
+									"treatBooleanAsNumber": false
+								}
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "customersStorDS",
+								"type": "DatasetReference",
+								"parameters": {
+									"fileName": {
+										"value": "@pipeline().parameters.fileName",
+										"type": "Expression"
+									}
+								}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "customerSQLDS",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						]
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"fileName": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"lastPublishTime": "2026-03-02T17:52:09Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/customersStorDS')]",
+				"[concat(variables('factoryId'), '/datasets/customerSQLDS')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/IncrementalCopyPipeline')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "LookupOldWaterMarkActivity",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "watermarkvalue",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						}
+					},
+					{
+						"name": "LookupNewWaterMarkActivity",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": "select MAX(LastModifytime) as NewWatermarkvalue from data_source_table",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "SourceDataset",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						}
+					},
+					{
+						"name": "IncrementalCopyActivity",
+						"type": "Copy",
+						"dependsOn": [
+							{
+								"activity": "LookupOldWaterMarkActivity",
+								"dependencyConditions": [
+									"Completed"
+								]
+							},
+							{
+								"activity": "LookupNewWaterMarkActivity",
+								"dependencyConditions": [
+									"Completed"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": {
+									"value": "select * from data_source_table where LastModifytime > '@{activity('LookupOldWaterMarkActivity').output.firstRow.WatermarkValue}' and LastModifytime <= '@{activity('LookupNewWaterMarkActivity').output.firstRow.NewWatermarkvalue}'",
+									"type": "Expression"
+								},
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"sink": {
+								"type": "DelimitedTextSink",
+								"storeSettings": {
+									"type": "AzureBlobStorageWriteSettings"
+								},
+								"formatSettings": {
+									"type": "DelimitedTextWriteSettings",
+									"quoteAllText": true,
+									"fileExtension": ".txt"
+								}
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"mappings": [
+									{
+										"source": {
+											"name": "PersonID",
+											"type": "Int32",
+											"physicalType": "int"
+										},
+										"sink": {
+											"name": "PersonID",
+											"type": "String",
+											"physicalType": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "Name",
+											"type": "String",
+											"physicalType": "varchar"
+										},
+										"sink": {
+											"name": "Name",
+											"type": "String",
+											"physicalType": "String"
+										}
+									},
+									{
+										"source": {
+											"name": "LastModifytime",
+											"type": "DateTime",
+											"physicalType": "datetime"
+										},
+										"sink": {
+											"name": "LastModifytime",
+											"type": "String",
+											"physicalType": "String"
+										}
+									}
+								],
+								"typeConversion": true,
+								"typeConversionSettings": {
+									"allowDataTruncation": true,
+									"treatBooleanAsNumber": false
+								}
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "SourceDataset",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "DelimitedText1",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						]
+					},
+					{
+						"name": "StoredProceduretoWriteWatermarkActivity",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "IncrementalCopyActivity",
+								"dependencyConditions": [
+									"Completed"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[usp_write_watermark]",
+							"storedProcedureParameters": {
+								"LastModifiedtime": {
+									"value": {
+										"value": "@{activity('LookupNewWaterMarkActivity').output.firstRow.NewWatermarkvalue}",
+										"type": "Expression"
+									},
+									"type": "DateTime"
+								},
+								"TableName": {
+									"value": {
+										"value": "@{activity('LookupOldWaterMarkActivity').output.firstRow.TableName}",
+										"type": "Expression"
+									},
+									"type": "String"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "AzureSqlDatabasels",
+							"type": "LinkedServiceReference"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"annotations": [],
+				"lastPublishTime": "2026-03-03T14:55:51Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/watermarkvalue')]",
+				"[concat(variables('factoryId'), '/datasets/SourceDataset')]",
+				"[concat(variables('factoryId'), '/datasets/DelimitedText1')]",
+				"[concat(variables('factoryId'), '/linkedServices/AzureSqlDatabasels')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/Logic_APPS_TEST')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "send_email",
+						"type": "WebActivity",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"method": "POST",
+							"headers": {},
+							"url": "https://prod-33.eastus.logic.azure.com:443/workflows/5b928c014fc245a0a92d9181312c327f/triggers/When_an_HTTP_request_is_received/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2FWhen_an_HTTP_request_is_received%2Frun&sv=1.0&sig=v4cOXyTkGgyWrERZI9AnmXIh5mQzzFRd4oHBOkHz0rk",
+							"body": {
+								"to": "siddeshhk.99@gmail.com",
+								"subject": "ADF pipeline",
+								"email_body": "Some error accured"
+							}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"annotations": [],
+				"lastPublishTime": "2026-02-28T08:29:49Z"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/PL_BRONZE_LAYER')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "customers_bronze_ingestion",
+						"description": "customers_bronze_ingestion",
+						"type": "DatabricksNotebook",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebookPath": "/Users/soumyakm1995@gmail.com/retail-omnichannel-lakehouse/databricks/01_bronze/customers_bronze_ingestion",
+							"baseParameters": {
+								"source_checkpoint_folder": "customers",
+								"target_table": "retail_bronze.customers"
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "ls_azure_databricks",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "products_bronze_ingestion",
+						"type": "DatabricksNotebook",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebookPath": "/Users/soumyakm1995@gmail.com/retail-omnichannel-lakehouse/databricks/01_bronze/products_bronze_ingestion",
+							"baseParameters": {
+								"source_checkpoint_folder": "products",
+								"target_table": "retail_bronze.products"
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "ls_azure_databricks",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "ecommerce_orders_bronze_ingestion",
+						"type": "DatabricksNotebook",
+						"dependsOn": [
+							{
+								"activity": "customers_bronze_ingestion",
+								"dependencyConditions": [
+									"Completed"
+								]
+							},
+							{
+								"activity": "products_bronze_ingestion",
+								"dependencyConditions": [
+									"Completed"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebookPath": "/Users/soumyakm1995@gmail.com/retail-omnichannel-lakehouse/databricks/01_bronze/ecommerce_orders_bronze_ingestion",
+							"baseParameters": {
+								"source_checkpoint_folder": "ecommerce_orders",
+								"target_table": "retail_bronze.ecommerce_orders"
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "ls_azure_databricks",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "pos_sales_bronze_ingestion",
+						"type": "DatabricksNotebook",
+						"dependsOn": [
+							{
+								"activity": "products_bronze_ingestion",
+								"dependencyConditions": [
+									"Completed"
+								]
+							},
+							{
+								"activity": "customers_bronze_ingestion",
+								"dependencyConditions": [
+									"Completed"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebookPath": "/Users/soumyakm1995@gmail.com/retail-omnichannel-lakehouse/databricks/01_bronze/pos_sales_bronze_ingestion",
+							"baseParameters": {
+								"source_checkpoint_folder": "pos_sales",
+								"target_table": "retail_bronze.pos_sales"
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "ls_azure_databricks",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "inventory_snapshot_bronze_ingestion",
+						"type": "DatabricksNotebook",
+						"dependsOn": [
+							{
+								"activity": "products_bronze_ingestion",
+								"dependencyConditions": [
+									"Completed"
+								]
+							},
+							{
+								"activity": "customers_bronze_ingestion",
+								"dependencyConditions": [
+									"Completed"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebookPath": "/Users/soumyakm1995@gmail.com/retail-omnichannel-lakehouse/databricks/01_bronze/inventory_snapshot_bronze_ingestion",
+							"baseParameters": {
+								"source_checkpoint_folder": "inventory_snapshot",
+								"target_table": "retail_bronze.inventory_snapshot"
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "ls_azure_databricks",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "on_fail_send_email_c",
+						"type": "WebActivity",
+						"dependsOn": [
+							{
+								"activity": "customers_bronze_ingestion",
+								"dependencyConditions": [
+									"Failed"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"method": "POST",
+							"headers": {},
+							"url": "https://prod-33.eastus.logic.azure.com:443/workflows/5b928c014fc245a0a92d9181312c327f/triggers/When_an_HTTP_request_is_received/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2FWhen_an_HTTP_request_is_received%2Frun&sv=1.0&sig=v4cOXyTkGgyWrERZI9AnmXIh5mQzzFRd4oHBOkHz0rk",
+							"body": {
+								"to": "siddeshhk.99@gmail.com",
+								"subject": "ADF pipeline",
+								"email_body": "Customers bronze Note failed with some error please have look into notebook for detailed issue "
+							}
+						}
+					},
+					{
+						"name": "on_fail_send_email_copy_p",
+						"type": "WebActivity",
+						"dependsOn": [
+							{
+								"activity": "products_bronze_ingestion",
+								"dependencyConditions": [
+									"Failed"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"method": "POST",
+							"headers": {},
+							"url": "https://prod-33.eastus.logic.azure.com:443/workflows/5b928c014fc245a0a92d9181312c327f/triggers/When_an_HTTP_request_is_received/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2FWhen_an_HTTP_request_is_received%2Frun&sv=1.0&sig=v4cOXyTkGgyWrERZI9AnmXIh5mQzzFRd4oHBOkHz0rk",
+							"body": {
+								"to": "siddeshhk.99@gmail.com",
+								"subject": "ADF pipeline",
+								"email_body": "Products bronze Note failed with some error please have look into notebook for detailed issue "
+							}
+						}
+					},
+					{
+						"name": "on_fail_send_email_copy_e",
+						"type": "WebActivity",
+						"dependsOn": [
+							{
+								"activity": "ecommerce_orders_bronze_ingestion",
+								"dependencyConditions": [
+									"Failed"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"method": "POST",
+							"headers": {},
+							"url": "https://prod-33.eastus.logic.azure.com:443/workflows/5b928c014fc245a0a92d9181312c327f/triggers/When_an_HTTP_request_is_received/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2FWhen_an_HTTP_request_is_received%2Frun&sv=1.0&sig=v4cOXyTkGgyWrERZI9AnmXIh5mQzzFRd4oHBOkHz0rk",
+							"body": {
+								"to": "siddeshhk.99@gmail.com",
+								"subject": "ADF pipeline",
+								"email_body": " e-commers orders bronze Note failed with some error please have look into notebook for detailed issue "
+							}
+						}
+					},
+					{
+						"name": "on_fail_send_email_copy_pos",
+						"type": "WebActivity",
+						"dependsOn": [
+							{
+								"activity": "pos_sales_bronze_ingestion",
+								"dependencyConditions": [
+									"Failed"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"method": "POST",
+							"headers": {},
+							"url": "https://prod-33.eastus.logic.azure.com:443/workflows/5b928c014fc245a0a92d9181312c327f/triggers/When_an_HTTP_request_is_received/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2FWhen_an_HTTP_request_is_received%2Frun&sv=1.0&sig=v4cOXyTkGgyWrERZI9AnmXIh5mQzzFRd4oHBOkHz0rk",
+							"body": {
+								"to": "siddeshhk.99@gmail.com",
+								"subject": "ADF pipeline",
+								"email_body": "pos bronze Note failed with some error please have look into notebook for detailed issue "
+							}
+						}
+					},
+					{
+						"name": "on_fail_send_email_copy_inv",
+						"type": "WebActivity",
+						"dependsOn": [
+							{
+								"activity": "inventory_snapshot_bronze_ingestion",
+								"dependencyConditions": [
+									"Failed"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"method": "POST",
+							"headers": {},
+							"url": "https://prod-33.eastus.logic.azure.com:443/workflows/5b928c014fc245a0a92d9181312c327f/triggers/When_an_HTTP_request_is_received/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2FWhen_an_HTTP_request_is_received%2Frun&sv=1.0&sig=v4cOXyTkGgyWrERZI9AnmXIh5mQzzFRd4oHBOkHz0rk",
+							"body": {
+								"to": "siddeshhk.99@gmail.com",
+								"subject": "ADF pipeline",
+								"email_body": "Inventory bronze Note failed with some error please have look into notebook for detailed issue "
+							}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"annotations": [],
+				"lastPublishTime": "2026-02-28T08:44:08Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_azure_databricks')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/PL_GOLD_LAYER')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "retail_and_pos_metrics",
+						"type": "DatabricksNotebook",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebookPath": "/Users/soumyakm1995@gmail.com/retail-omnichannel-lakehouse/databricks/03_gold/retail_and_pos_metrics"
+						},
+						"linkedServiceName": {
+							"referenceName": "ls_azure_databricks",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "on_fail_send_email",
+						"type": "WebActivity",
+						"dependsOn": [
+							{
+								"activity": "retail_and_pos_metrics",
+								"dependencyConditions": [
+									"Failed"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"method": "POST",
+							"headers": {},
+							"url": "https://prod-33.eastus.logic.azure.com:443/workflows/5b928c014fc245a0a92d9181312c327f/triggers/When_an_HTTP_request_is_received/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2FWhen_an_HTTP_request_is_received%2Frun&sv=1.0&sig=v4cOXyTkGgyWrERZI9AnmXIh5mQzzFRd4oHBOkHz0rk",
+							"body": {
+								"to": "siddeshhk.99@gmail.com",
+								"subject": "ADF pipeline",
+								"email_body": "Gold Note failed with some error please have look into notebook for detailed issue "
+							}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"annotations": [],
+				"lastPublishTime": "2026-02-28T08:29:49Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_azure_databricks')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/PL_MASTER_RETAIL')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "01_Bronze",
+						"type": "ExecutePipeline",
+						"dependsOn": [],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "PL_BRONZE_LAYER",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "02_Silver",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "01_Bronze",
+								"dependencyConditions": [
+									"Completed"
+								]
+							}
+						],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "PL_SILVER_LAYER",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "03_Gold",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "02_Silver",
+								"dependencyConditions": [
+									"Completed"
+								]
+							}
+						],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "PL_GOLD_LAYER",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"annotations": [],
+				"lastPublishTime": "2026-02-28T06:45:25Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/PL_BRONZE_LAYER')]",
+				"[concat(variables('factoryId'), '/pipelines/PL_SILVER_LAYER')]",
+				"[concat(variables('factoryId'), '/pipelines/PL_GOLD_LAYER')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/PL_SILVER_LAYER')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "customers_silver_ingestion",
+						"type": "DatabricksNotebook",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebookPath": "/Users/soumyakm1995@gmail.com/retail-omnichannel-lakehouse/databricks/02_silver/customers_silver_ingestion",
+							"baseParameters": {
+								"source_table": "retail_bronze.customers",
+								"target_table": "retail_silver.dim_customers"
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "ls_azure_databricks",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "products_silver_ingestion",
+						"type": "DatabricksNotebook",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebookPath": "/Users/soumyakm1995@gmail.com/retail-omnichannel-lakehouse/databricks/02_silver/products_silver_ingestion",
+							"baseParameters": {
+								"source_table": "retail_bronze.products",
+								"target_table": "retail_silver.dim_products"
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "ls_azure_databricks",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "ecommerce_orders_silver_ingestion",
+						"type": "DatabricksNotebook",
+						"dependsOn": [
+							{
+								"activity": "customers_silver_ingestion",
+								"dependencyConditions": [
+									"Completed"
+								]
+							},
+							{
+								"activity": "products_silver_ingestion",
+								"dependencyConditions": [
+									"Completed"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebookPath": "/Users/soumyakm1995@gmail.com/retail-omnichannel-lakehouse/databricks/02_silver/ecommerce_orders_silver_ingestion",
+							"baseParameters": {
+								"source_table": "retail_bronze.ecommerce_orders",
+								"target_table": "retail_silver.ecommerce_orders"
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "ls_azure_databricks",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "pos_sales_silver_ingestion",
+						"type": "DatabricksNotebook",
+						"dependsOn": [
+							{
+								"activity": "customers_silver_ingestion",
+								"dependencyConditions": [
+									"Completed"
+								]
+							},
+							{
+								"activity": "products_silver_ingestion",
+								"dependencyConditions": [
+									"Completed"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebookPath": "/Users/soumyakm1995@gmail.com/retail-omnichannel-lakehouse/databricks/02_silver/pos_sales_silver_ingestion",
+							"baseParameters": {
+								"source_table": "retail_bronze.pos_sales",
+								"target_table": "retail_silver.pos_sales"
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "ls_azure_databricks",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "inventory_snapshot_silver_ingestion",
+						"type": "DatabricksNotebook",
+						"dependsOn": [
+							{
+								"activity": "customers_silver_ingestion",
+								"dependencyConditions": [
+									"Completed"
+								]
+							},
+							{
+								"activity": "products_silver_ingestion",
+								"dependencyConditions": [
+									"Completed"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebookPath": "/Users/soumyakm1995@gmail.com/retail-omnichannel-lakehouse/databricks/02_silver/inventory_snapshot_silver_ingestion",
+							"baseParameters": {
+								"source_table": "retail_bronze.inventory_snapshot",
+								"target_table": "retail_silver.inventory_snapshot"
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "ls_azure_databricks",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "on_fail_send_email_c",
+						"type": "WebActivity",
+						"dependsOn": [
+							{
+								"activity": "customers_silver_ingestion",
+								"dependencyConditions": [
+									"Failed"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"method": "POST",
+							"headers": {},
+							"url": "https://prod-33.eastus.logic.azure.com:443/workflows/5b928c014fc245a0a92d9181312c327f/triggers/When_an_HTTP_request_is_received/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2FWhen_an_HTTP_request_is_received%2Frun&sv=1.0&sig=v4cOXyTkGgyWrERZI9AnmXIh5mQzzFRd4oHBOkHz0rk",
+							"body": {
+								"to": "siddeshhk.99@gmail.com",
+								"subject": "ADF pipeline",
+								"email_body": "Customers silver notebook failed with some error please have look into notebook for detailed issue "
+							}
+						}
+					},
+					{
+						"name": "on_fail_send_email_c_copy1",
+						"type": "WebActivity",
+						"dependsOn": [
+							{
+								"activity": "products_silver_ingestion",
+								"dependencyConditions": [
+									"Failed"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"method": "POST",
+							"headers": {},
+							"url": "https://prod-33.eastus.logic.azure.com:443/workflows/5b928c014fc245a0a92d9181312c327f/triggers/When_an_HTTP_request_is_received/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2FWhen_an_HTTP_request_is_received%2Frun&sv=1.0&sig=v4cOXyTkGgyWrERZI9AnmXIh5mQzzFRd4oHBOkHz0rk",
+							"body": {
+								"to": "siddeshhk.99@gmail.com",
+								"subject": "ADF pipeline",
+								"email_body": "Products silver notebook failed with some error please have look into notebook for detailed issue "
+							}
+						}
+					},
+					{
+						"name": "on_fail_send_email_c_copy2",
+						"type": "WebActivity",
+						"dependsOn": [
+							{
+								"activity": "ecommerce_orders_silver_ingestion",
+								"dependencyConditions": [
+									"Failed"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"method": "POST",
+							"headers": {},
+							"url": "https://prod-33.eastus.logic.azure.com:443/workflows/5b928c014fc245a0a92d9181312c327f/triggers/When_an_HTTP_request_is_received/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2FWhen_an_HTTP_request_is_received%2Frun&sv=1.0&sig=v4cOXyTkGgyWrERZI9AnmXIh5mQzzFRd4oHBOkHz0rk",
+							"body": {
+								"to": "siddeshhk.99@gmail.com",
+								"subject": "ADF pipeline",
+								"email_body": "E-commers silver notebook failed with some error please have look into notebook for detailed issue "
+							}
+						}
+					},
+					{
+						"name": "on_fail_send_email_c_copy2_copy1",
+						"type": "WebActivity",
+						"dependsOn": [
+							{
+								"activity": "pos_sales_silver_ingestion",
+								"dependencyConditions": [
+									"Failed"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"method": "POST",
+							"headers": {},
+							"url": "https://prod-33.eastus.logic.azure.com:443/workflows/5b928c014fc245a0a92d9181312c327f/triggers/When_an_HTTP_request_is_received/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2FWhen_an_HTTP_request_is_received%2Frun&sv=1.0&sig=v4cOXyTkGgyWrERZI9AnmXIh5mQzzFRd4oHBOkHz0rk",
+							"body": {
+								"to": "siddeshhk.99@gmail.com",
+								"subject": "ADF pipeline",
+								"email_body": "pos silver notebook failed with some error please have look into notebook for detailed issue "
+							}
+						}
+					},
+					{
+						"name": "on_fail_send_email_c_copy2_copy1_copy1",
+						"type": "WebActivity",
+						"dependsOn": [
+							{
+								"activity": "inventory_snapshot_silver_ingestion",
+								"dependencyConditions": [
+									"Failed"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"method": "POST",
+							"headers": {},
+							"url": "https://prod-33.eastus.logic.azure.com:443/workflows/5b928c014fc245a0a92d9181312c327f/triggers/When_an_HTTP_request_is_received/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2FWhen_an_HTTP_request_is_received%2Frun&sv=1.0&sig=v4cOXyTkGgyWrERZI9AnmXIh5mQzzFRd4oHBOkHz0rk",
+							"body": {
+								"to": "siddeshhk.99@gmail.com",
+								"subject": "ADF pipeline",
+								"email_body": "Inventory silver notebook failed with some error please have look into notebook for detailed issue "
+							}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"annotations": [],
+				"lastPublishTime": "2026-02-28T08:44:08Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_azure_databricks')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DelimitedText1')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "AzureBlobStorage1",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobStorageLocation",
+						"fileName": {
+							"value": "@CONCAT('Incremental-', pipeline().RunId, '.txt')",
+							"type": "Expression"
+						},
+						"folderPath": "data",
+						"container": "incrementaldata"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": [
+					{
+						"name": "customer_id",
+						"type": "String"
+					},
+					{
+						"name": "customer_name",
+						"type": "String"
+					},
+					{
+						"name": "email",
+						"type": "String"
+					},
+					{
+						"name": "phone",
+						"type": "String"
+					},
+					{
+						"name": "region",
+						"type": "String"
+					},
+					{
+						"name": "city",
+						"type": "String"
+					},
+					{
+						"name": "signup_date",
+						"type": "String"
+					},
+					{
+						"name": "status",
+						"type": "String"
+					},
+					{
+						"name": "snapshot_date",
+						"type": "String"
+					}
+				]
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/AzureBlobStorage1')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/SourceDataset')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "AzureSqlDatabasels",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [
+					{
+						"name": "PersonID",
+						"type": "int",
+						"precision": 10
+					},
+					{
+						"name": "Name",
+						"type": "varchar"
+					},
+					{
+						"name": "LastModifytime",
+						"type": "datetime",
+						"precision": 23,
+						"scale": 3
+					}
+				],
+				"typeProperties": {
+					"schema": "dbo",
+					"table": "data_source_table"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/AzureSqlDatabasels')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/customerSQLDS')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "AzureSqlDatabasels",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [
+					{
+						"name": "customer_id",
+						"type": "varchar"
+					},
+					{
+						"name": "customer_name",
+						"type": "varchar"
+					},
+					{
+						"name": "email",
+						"type": "varchar"
+					},
+					{
+						"name": "phone",
+						"type": "varchar"
+					},
+					{
+						"name": "region",
+						"type": "varchar"
+					},
+					{
+						"name": "city",
+						"type": "varchar"
+					},
+					{
+						"name": "signup_date",
+						"type": "varchar"
+					},
+					{
+						"name": "status",
+						"type": "varchar"
+					},
+					{
+						"name": "snapshot_date",
+						"type": "varchar"
+					}
+				],
+				"typeProperties": {
+					"schema": "dbo",
+					"table": "customers"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/AzureSqlDatabasels')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/customersStorDS')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "AzureBlobStorage1",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"fileName": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobStorageLocation",
+						"fileName": {
+							"value": "@dataset().fileName",
+							"type": "Expression"
+						},
+						"folderPath": "customers",
+						"container": "sqlcontainer"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": [
+					{
+						"name": "customer_id",
+						"type": "String"
+					},
+					{
+						"name": "customer_name",
+						"type": "String"
+					},
+					{
+						"name": "email",
+						"type": "String"
+					},
+					{
+						"name": "phone",
+						"type": "String"
+					},
+					{
+						"name": "region",
+						"type": "String"
+					},
+					{
+						"name": "city",
+						"type": "String"
+					},
+					{
+						"name": "signup_date",
+						"type": "String"
+					},
+					{
+						"name": "status",
+						"type": "String"
+					},
+					{
+						"name": "snapshot_date",
+						"type": "String"
+					}
+				]
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/AzureBlobStorage1')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/metaDataAnalysis')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "AzureBlobStorage1",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobStorageLocation",
+						"folderPath": "rawfiles",
+						"container": "retailer"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/AzureBlobStorage1')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/metadataAnalysis2')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "AzureBlobStorage1",
+					"type": "LinkedServiceReference"
+				},
+				"parameters": {
+					"FileName": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobStorageLocation",
+						"fileName": {
+							"value": "@dataset().FileName",
+							"type": "Expression"
+						},
+						"folderPath": "rawfiles",
+						"container": "retailer"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/AzureBlobStorage1')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/outputDS')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "AzureBlobStorage1",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobStorageLocation",
+						"folderPath": "outputDataset",
+						"container": "retailer"
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/AzureBlobStorage1')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/watermarkvalue')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "AzureSqlDatabasels",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [
+					{
+						"name": "TableName",
+						"type": "varchar"
+					},
+					{
+						"name": "WatermarkValue",
+						"type": "datetime",
+						"precision": 23,
+						"scale": 3
+					}
+				],
+				"typeProperties": {
+					"schema": "dbo",
+					"table": "watermarktable"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/AzureSqlDatabasels')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/AzureBlobStorage1')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureBlobStorage",
+				"typeProperties": {
+					"connectionString": "[parameters('AzureBlobStorage1_connectionString')]"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/AzureSqlDatabasels')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureSqlDatabase",
+				"typeProperties": {
+					"server": "[parameters('AzureSqlDatabasels_properties_typeProperties_server')]",
+					"database": "[parameters('AzureSqlDatabasels_properties_typeProperties_database')]",
+					"encrypt": "mandatory",
+					"trustServerCertificate": false,
+					"authenticationType": "SQL",
+					"userName": "[parameters('AzureSqlDatabasels_properties_typeProperties_userName')]",
+					"password": {
+						"type": "SecureString",
+						"value": "[parameters('AzureSqlDatabasels_password')]"
+					}
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ls_azure_databricks')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureDatabricks",
+				"typeProperties": {
+					"domain": "https://adb-7405604982592552.12.azuredatabricks.net",
+					"accessToken": {
+						"type": "SecureString",
+						"value": "[parameters('ls_azure_databricks_accessToken')]"
+					},
+					"existingClusterId": "[parameters('ls_azure_databricks_properties_typeProperties_existingClusterId')]"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/FirstEventTrigger')]",
+			"type": "Microsoft.DataFactory/factories/triggers",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"runtimeState": "Stopped",
+				"pipelines": [],
+				"type": "BlobEventsTrigger",
+				"typeProperties": {
+					"blobPathBeginsWith": "/sqlcontainer/blobs/customers/",
+					"ignoreEmptyBlobs": true,
+					"scope": "[parameters('FirstEventTrigger_properties_typeProperties_scope')]",
+					"events": [
+						"Microsoft.Storage.BlobCreated"
+					]
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/secondEventTrigger')]",
+			"type": "Microsoft.DataFactory/factories/triggers",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"runtimeState": "Started",
+				"pipelines": [
+					{
+						"pipelineReference": {
+							"referenceName": "CopyFromBlobToSQL",
+							"type": "PipelineReference"
+						},
+						"parameters": {
+							"fileName": "[parameters('secondEventTrigger_properties_CopyFromBlobToSQL_parameters_fileName')]"
+						}
+					}
+				],
+				"type": "BlobEventsTrigger",
+				"typeProperties": {
+					"blobPathBeginsWith": "/sqlcontainer/blobs/customers/",
+					"blobPathEndsWith": ".csv",
+					"ignoreEmptyBlobs": true,
+					"scope": "[parameters('secondEventTrigger_properties_typeProperties_scope')]",
+					"events": [
+						"Microsoft.Storage.BlobCreated"
+					]
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/CopyFromBlobToSQL')]"
+			]
+		}
+	]
+}

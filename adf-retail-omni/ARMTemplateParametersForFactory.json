@@ -1,0 +1,39 @@
+{
+	"$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"value": "adf-retail-omni"
+		},
+		"AzureBlobStorage1_connectionString": {
+			"value": ""
+		},
+		"AzureSqlDatabasels_password": {
+			"value": ""
+		},
+		"ls_azure_databricks_accessToken": {
+			"value": ""
+		},
+		"AzureSqlDatabasels_properties_typeProperties_server": {
+			"value": "retail-domnicanal.database.windows.net"
+		},
+		"AzureSqlDatabasels_properties_typeProperties_database": {
+			"value": "retail_domnicanal"
+		},
+		"AzureSqlDatabasels_properties_typeProperties_userName": {
+			"value": "sid"
+		},
+		"ls_azure_databricks_properties_typeProperties_existingClusterId": {
+			"value": "0217-094249-4d6zqh7m"
+		},
+		"FirstEventTrigger_properties_typeProperties_scope": {
+			"value": "/subscriptions/8f9aed69-11e7-4db9-a08c-4a2276ac609d/resourceGroups/retail_omnichannel_lakehouse/providers/Microsoft.Storage/storageAccounts/retaileromnichannelgen2"
+		},
+		"secondEventTrigger_properties_CopyFromBlobToSQL_parameters_fileName": {
+			"value": "@triggerBody().fileName"
+		},
+		"secondEventTrigger_properties_typeProperties_scope": {
+			"value": "/subscriptions/8f9aed69-11e7-4db9-a08c-4a2276ac609d/resourceGroups/retail_omnichannel_lakehouse/providers/Microsoft.Storage/storageAccounts/retaileromnichannelgen2"
+		}
+	}
+}

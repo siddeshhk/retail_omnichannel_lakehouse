@@ -1,0 +1,132 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory name",
+			"defaultValue": "adf-retail-omni"
+		},
+		"AzureBlobStorage1_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'AzureBlobStorage1'"
+		},
+		"AzureSqlDatabasels_password": {
+			"type": "secureString",
+			"metadata": "Secure string for 'password' of 'AzureSqlDatabasels'"
+		},
+		"ls_azure_databricks_accessToken": {
+			"type": "secureString",
+			"metadata": "Secure string for 'accessToken' of 'ls_azure_databricks'"
+		},
+		"AzureSqlDatabasels_properties_typeProperties_server": {
+			"type": "string",
+			"defaultValue": "retail-domnicanal.database.windows.net"
+		},
+		"AzureSqlDatabasels_properties_typeProperties_database": {
+			"type": "string",
+			"defaultValue": "retail_domnicanal"
+		},
+		"AzureSqlDatabasels_properties_typeProperties_userName": {
+			"type": "string",
+			"defaultValue": "sid"
+		},
+		"ls_azure_databricks_properties_typeProperties_existingClusterId": {
+			"type": "string",
+			"defaultValue": "0217-094249-4d6zqh7m"
+		},
+		"FirstEventTrigger_properties_typeProperties_scope": {
+			"type": "string",
+			"defaultValue": "/subscriptions/8f9aed69-11e7-4db9-a08c-4a2276ac609d/resourceGroups/retail_omnichannel_lakehouse/providers/Microsoft.Storage/storageAccounts/retaileromnichannelgen2"
+		},
+		"secondEventTrigger_properties_CopyFromBlobToSQL_parameters_fileName": {
+			"type": "string",
+			"defaultValue": "@triggerBody().fileName"
+		},
+		"secondEventTrigger_properties_typeProperties_scope": {
+			"type": "string",
+			"defaultValue": "/subscriptions/8f9aed69-11e7-4db9-a08c-4a2276ac609d/resourceGroups/retail_omnichannel_lakehouse/providers/Microsoft.Storage/storageAccounts/retaileromnichannelgen2"
+		},
+		"containerUri": {
+			"type": "string",
+			"metadata": "URI to storage account containing linked ARM templates"
+		},
+		"containerSasToken": {
+			"type": "string",
+			"metadata": "Sas token to storage account containing linked ARM templates"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "adf-retail-omni_ArmTemplate_0",
+			"type": "Microsoft.Resources/deployments",
+			"apiVersion": "2024-03-01",
+			"properties": {
+				"mode": "incremental",
+				"templateLink": {
+					"uri": "[concat(parameters('containerUri'), '/ArmTemplate_0.json', parameters('containerSasToken'))]",
+					"contentVersion": "1.0.0.0"
+				},
+				"parameters": {
+					"factoryName": {
+						"value": "[parameters('factoryName')]"
+					},
+					"AzureBlobStorage1_connectionString": {
+						"value": "[parameters('AzureBlobStorage1_connectionString')]"
+					},
+					"AzureSqlDatabasels_password": {
+						"value": "[parameters('AzureSqlDatabasels_password')]"
+					},
+					"ls_azure_databricks_accessToken": {
+						"value": "[parameters('ls_azure_databricks_accessToken')]"
+					},
+					"AzureSqlDatabasels_properties_typeProperties_server": {
+						"value": "[parameters('AzureSqlDatabasels_properties_typeProperties_server')]"
+					},
+					"AzureSqlDatabasels_properties_typeProperties_database": {
+						"value": "[parameters('AzureSqlDatabasels_properties_typeProperties_database')]"
+					},
+					"AzureSqlDatabasels_properties_typeProperties_userName": {
+						"value": "[parameters('AzureSqlDatabasels_properties_typeProperties_userName')]"
+					},
+					"ls_azure_databricks_properties_typeProperties_existingClusterId": {
+						"value": "[parameters('ls_azure_databricks_properties_typeProperties_existingClusterId')]"
+					},
+					"FirstEventTrigger_properties_typeProperties_scope": {
+						"value": "[parameters('FirstEventTrigger_properties_typeProperties_scope')]"
+					}
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "adf-retail-omni_ArmTemplate_1",
+			"type": "Microsoft.Resources/deployments",
+			"apiVersion": "2024-03-01",
+			"properties": {
+				"mode": "incremental",
+				"templateLink": {
+					"uri": "[concat(parameters('containerUri'), '/ArmTemplate_1.json', parameters('containerSasToken'))]",
+					"contentVersion": "1.0.0.0"
+				},
+				"parameters": {
+					"factoryName": {
+						"value": "[parameters('factoryName')]"
+					},
+					"secondEventTrigger_properties_CopyFromBlobToSQL_parameters_fileName": {
+						"value": "[parameters('secondEventTrigger_properties_CopyFromBlobToSQL_parameters_fileName')]"
+					},
+					"secondEventTrigger_properties_typeProperties_scope": {
+						"value": "[parameters('secondEventTrigger_properties_typeProperties_scope')]"
+					}
+				}
+			},
+			"dependsOn": [
+				"[resourceId('Microsoft.Resources/deployments', 'adf-retail-omni_ArmTemplate_0')]"
+			]
+		}
+	]
+}
